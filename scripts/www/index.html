@@ -1,11 +1,689 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>披萨小助手</title>
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23FF9800'/%3E%3Ctext x='50' y='70' font-size='50' text-anchor='middle' fill='white'%3E🍕%3C/text%3E%3C/svg%3E">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif; background: #f5f5f5; padding-bottom: 80px; }
+        .app-bar { background: #FF9800; color: white; padding: 5px; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 10; }
+        .app-bar-title { display: flex; align-items: center; }
+        .settings-icon { font-size: 24px; cursor: pointer; background: none; border: none; color: white; padding: 4px 8px; box-shadow: none; width: auto; }
+        .tab-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; border-top: 1px solid #ddd; padding: 8px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 5; }
+        .tab { flex: 1; text-align: center; color: #888; font-size: 12px; padding: 4px; cursor: pointer; transition: all 0.2s; }
+        .tab.active { color: #FF9800; font-weight: 600; }
+        .tab.active .tab-icon { transform: scale(1.1); }
+        .tab-icon { font-size: 22px; display: block; margin-bottom: 2px; transition: transform 0.2s; }
+        .container { max-width: 500px; margin: 0 auto; padding: 16px; }
+        .card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .compact-card { padding: 12px; margin-bottom: 12px; cursor: pointer; transition: background 0.2s; }
+        .compact-card:active { background: #f9f9f9; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+        .stat-column { display: flex; flex-direction: column; gap: 10px; }
+        .stat-card { background: white; border-radius: 16px; padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .stat-label { color: #888; font-size: 13px; margin-bottom: 6px; }
+        .stat-value { font-size: 20px; font-weight: bold; }
+        .profit-badge { background: #E8F5E9; padding: 4px 12px; border-radius: 40px; color: #2E7D32; font-weight: bold; font-size: 14px; }
+        button { background: #FF9800; color: white; border: none; border-radius: 40px; padding: 12px 20px; font-size: 16px; font-weight: 600; width: 100%; cursor: pointer; box-shadow: 0 4px 8px rgba(255,152,0,0.3); }
+        button.secondary { background: #f0f0f0; color: #333; box-shadow: none; }
+        .flavor-selector { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+        .flavor-chip { background: #f0f0f0; padding: 10px 16px; border-radius: 40px; font-size: 16px; cursor: pointer; border: 2px solid transparent; }
+        .flavor-chip.selected { background: #FFF3E0; border-color: #FF9800; font-weight: 600; }
+        .customer-chip { background: #f0f0f0; padding: 10px 20px; border-radius: 40px; font-size: 16px; cursor: pointer; border: 2px solid transparent; }
+        .customer-chip.selected { background: #E3F2FD; border-color: #2196F3; font-weight: 600; }
+        .amount-control { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 20px 0; }
+        .amount-btn { background: #FF9800; color: white; width: 48px; height: 48px; border-radius: 24px; display: flex; align-items: center; justify-content: center; font-size: 28px; cursor: pointer; }
+        .amount-input { font-size: 28px; font-weight: bold; width: 80px; text-align: center; border: 1px solid #ddd; border-radius: 40px; padding: 8px 0; background: white; }
+        .discount-row { display: flex; align-items: center; gap: 10px; margin: 15px 0; }
+        .discount-row label { font-size: 16px; font-weight: 500; }
+        .discount-row input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 40px; text-align: right; }
+        table { width: 100%; border-collapse: collapse; }
+        td, th { padding: 8px 4px; border-bottom: 1px solid #eee; text-align: left; }
+        .text-right { text-align: right; }
+        input[type="number"], select {
+            width: 100%;
+            height: 38px;
+            padding: 6px 12px;
+            font-size: 15px;
+            line-height: 1.4;
+            border: 1px solid #ddd;
+            border-radius: 40px;
+            background: white;
+            text-align: left;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 12px;
+            padding-right: 32px;
+        }
+        input[type="text"] { width: 100%; padding: 8px 12px; font-size: 14px; border: 1px solid #ddd; border-radius: 40px; background: white; }
+        .toast-message { position: fixed; bottom: 100px; left: 20px; right: 20px; background: rgba(0,0,0,0.7); color: white; text-align: center; padding: 12px; border-radius: 40px; z-index: 1000; display: none; }
+        #view-report, #view-stat, #view-purchase, #view-settings, #view-inventory, #view-production, #view-basic { height: calc(100vh - 80px); display: flex; flex-direction: column; }
+        .filter-bar { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+        .filter-row { display: flex; gap: 6px; width: 100%; }
+        .filter-item { flex: 1; min-width: 0; }
+        .reset-filter-btn { background: #f0f0f0; color: #333; box-shadow: none; padding: 8px 16px; font-size: 14px; width: 100%; border-radius: 40px; margin-top: 6px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-card { background: white; border-radius: 24px; padding: 20px; width: 90%; max-width: 420px; max-height: 85vh; overflow-y: auto; }
+        .modal-title { font-size: 20px; font-weight: bold; margin-bottom: 16px; }
+        .modal-input { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 40px; margin-bottom: 12px; }
+        .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .add-btn { background: #FF9800; color: white; border: none; border-radius: 40px; padding: 8px 16px; font-size: 14px; font-weight: 600; width: auto; box-shadow: none; }
+        .flavor-card-header, .customer-card-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .item-name { font-weight: bold; font-size: 17px; }
+        .item-price { font-weight: bold; color: #1565C0; }
+        .stat-nav, .purchase-nav, .inventory-nav, .production-nav, .basic-nav { display: flex; align-items: center; margin-bottom: 8px; }
+        .back-btn { background: none; color: #FF9800; box-shadow: none; padding: 8px 0; font-size: 18px; width: auto; margin-right: 12px; }
+        .stat-filter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .stat-filter-row select { flex: 2; margin: 0; }
+        .granularity-bar { display: flex; gap: 8px; flex: 3; margin: 0; }
+        .granularity-btn { background: #f0f0f0; color: #333; box-shadow: none; padding: 8px 0; font-size: 14px; flex: 1; }
+        .granularity-btn.active { background: #FF9800; color: white; }
+        .stat-summary { background: #f9f9f9; border-radius: 16px; padding: 12px; margin-bottom: 16px; }
+        .stat-table { width: 100%; font-size: 14px; }
+        .stat-table th { background: #f0f0f0; font-weight: 600; padding: 10px 4px; }
+        .stat-table td { padding: 10px 4px; }
+        .purchase-form-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+        .purchase-form-row label { width: 60px; font-weight: 500; }
+        .purchase-form-row input, .purchase-form-row select { flex: 1; }
+        .ingredient-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .delete-btn-small { background: none; color: #C62828; box-shadow: none; padding: 2px 8px; font-size: 12px; width: auto; border: 1px solid #C62828; background: white; border-radius: 40px; }
+        .chart-container { position: relative; height: 200px; margin: 16px 0; }
+        .chart-toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+        .chart-toolbar button { padding: 6px 12px; font-size: 13px; width: auto; }
+        .export-toolbar { display: flex; gap: 8px; margin-top: 12px; }
+        .export-toolbar button { padding: 8px 12px; font-size: 14px; background: #4CAF50; }
+        .file-input-wrapper { position: relative; overflow: hidden; display: inline-block; }
+        .file-input-wrapper input { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+        .inventory-tabs, .basic-tabs, .production-tabs { display: flex; margin-bottom: 12px; border-bottom: 1px solid #ddd; }
+        .inventory-tab, .basic-tab, .production-tab { flex: 1; text-align: center; padding: 10px 0; color: #888; cursor: pointer; border-bottom: 2px solid transparent; }
+        .inventory-tab.active, .basic-tab.active, .production-tab.active { color: #FF9800; border-bottom-color: #FF9800; font-weight: 500; }
+        .stock-badge { padding: 2px 10px; border-radius: 20px; font-size: 14px; font-weight: bold; }
+        .stock-low { background: #FFF3E0; color: #E65100; }
+        .stock-normal { background: #E8F5E9; color: #2E7D32; }
+        .stock-out { background: #FFEBEE; color: #C62828; }
+        .production-flavor-row { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #f9f9f9; border-radius: 40px; margin-bottom: 8px; }
+        .production-flavor-name { font-weight: 600; font-size: 16px; }
+        .production-qty-control { display: flex; align-items: center; gap: 8px; }
+        .production-qty-control button { width: 36px; height: 36px; padding: 0; font-size: 20px; }
+        .production-qty-control input { width: 60px; text-align: center; }
+        .flavor-modal-row { display: flex; align-items: center; margin-bottom: 10px; gap: 8px; }
+        .flavor-modal-row label { width: 100px; font-size: 14px; }
+        .flavor-modal-row .cost-display { width: 70px; text-align: right; font-size: 14px; color: #2E7D32; }
+        .flavor-modal-row select, .flavor-modal-row input { flex: 2; }
+        .total-cost-row { margin-top: 15px; padding-top: 10px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; }
+        .ingredient-dynamic-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .ingredient-dynamic-row select { flex: 2; }
+        .ingredient-dynamic-row input { flex: 2; }
+        .ingredient-dynamic-row button { width: auto; padding: 2px 6px; background: #C62828; font-size: 12px; }
+        .warning-card { background: #FFF3E0; border-left: 4px solid #FF9800; }
+        .warning-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #ddd; }
+        .warning-item:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+<div class="app-bar" id="appBar" style="display: none;">
+    <div class="app-bar-title">🍕 披萨小助手</div>
+    <button class="settings-icon" onclick="showView('settings')">⚙️</button>
+</div>
+<div id="toast" class="toast-message"></div>
+
+<!-- ==================== 模态框区域 ==================== -->
+<!-- 口味编辑模态框 -->
+<div class="modal-overlay" id="flavorModalOverlay" onclick="closeFlavorModal()"><div class="modal-card" onclick="event.stopPropagation()"><div class="modal-title" id="flavorModalTitle">编辑口味</div><input type="text" id="flavorNameInput" class="modal-input" placeholder="口味名称" autocomplete="off"><div style="margin-bottom:15px;"><div class="flavor-modal-row"><label>饼底 (g)</label><input type="number" id="modalBase" step="0.1" min="0" class="modal-input" style="margin:0;"><span class="cost-display" id="costBase">¥0.00</span></div><div id="dynamicIngredientsContainer"></div><button onclick="addDynamicIngredientRow()" class="secondary" style="margin-bottom:10px;">➕ 添加原料</button><div class="flavor-modal-row"><label>包装 (元)</label><input type="number" id="modalPack" step="0.01" min="0" class="modal-input" style="margin:0;"><span class="cost-display" id="costPack">¥0.00</span></div><div class="flavor-modal-row"><label>人工 (元)</label><input type="number" id="modalLabor" step="0.01" min="0" class="modal-input" style="margin:0;"><span class="cost-display" id="costLabor">¥0.00</span></div></div><div class="total-cost-row"><span>总成本</span><span id="modalTotalCost">¥0.00</span></div><div class="modal-actions"><button class="secondary" onclick="closeFlavorModal()">取消</button><button onclick="saveFlavorFromModal()">保存</button></div></div></div>
+<!-- 客户编辑 -->
+<div class="modal-overlay" id="customerModalOverlay" onclick="closeCustomerModal()"><div class="modal-card" onclick="event.stopPropagation()"><div class="modal-title" id="customerModalTitle">新增客户</div><input type="text" id="customerNameInput" class="modal-input" placeholder="客户名称" autocomplete="off"><div style="margin-bottom:12px;"><label>售价（元）</label><input type="number" id="customerPriceInput" step="0.5" min="0" class="modal-input" style="margin-top:4px;"></div><div class="modal-actions"><button class="secondary" onclick="closeCustomerModal()">取消</button><button onclick="saveCustomerFromModal()">保存</button></div></div></div>
+<!-- 采购添加 -->
+<div class="modal-overlay" id="purchaseModalOverlay" onclick="closePurchaseModal()"><div class="modal-card" onclick="event.stopPropagation()"><div class="modal-title">新增采购</div><div class="purchase-form-row"><label>原料</label><select id="purchaseIngredientSelect"></select></div><div class="purchase-form-row"><label id="purchaseUnitLabel">数量(kg)</label><input type="number" id="purchaseQuantity" min="0.001" step="0.001"></div><div class="purchase-form-row"><label>总价(元)</label><input type="number" id="purchasePrice" min="0" step="0.01"></div><div class="modal-actions"><button class="secondary" onclick="closePurchaseModal()">取消</button><button onclick="savePurchase()">保存</button></div></div></div>
+<!-- 原料管理 -->
+<div class="modal-overlay" id="ingredientModalOverlay" onclick="closeIngredientModal()"><div class="modal-card" onclick="event.stopPropagation()"><div class="modal-title">管理原料</div><div style="display:flex; gap:8px; margin-bottom:16px;"><input type="text" id="newIngredientName" placeholder="输入原料名称" style="flex:2;"><button onclick="addIngredient()" style="width:auto; padding:8px 16px; flex:1;">添加</button></div><div id="ingredientListContainer" style="max-height:300px; overflow-y:auto;"></div><div class="modal-actions" style="margin-top:16px;"><button class="secondary" onclick="closeIngredientModal()">关闭</button></div></div></div>
+<!-- 库存调整 -->
+<div class="modal-overlay" id="stockModalOverlay" onclick="closeStockModal()"><div class="modal-card" onclick="event.stopPropagation()"><div class="modal-title" id="stockModalTitle">调整库存</div><div class="purchase-form-row"><label>变动量</label><input type="number" id="stockChangeInput" step="1"></div><div class="purchase-form-row"><label>备注</label><input type="text" id="stockRemarkInput" placeholder="如：盘点入库"></div><div class="modal-actions"><button class="secondary" onclick="closeStockModal()">取消</button><button onclick="confirmStockChange()">确认</button></div></div></div>
+<!-- 制作确认 -->
+<div class="modal-overlay" id="confirmProductionModal" onclick="closeConfirmProductionModal()"><div class="modal-card" onclick="event.stopPropagation()"><div class="modal-title">确认制作</div><div id="confirmProductionContent" style="margin-bottom:16px;"></div><div class="modal-actions"><button class="secondary" onclick="closeConfirmProductionModal()">取消</button><button onclick="executeProduction()">确认制作</button></div></div></div>
+<!-- 材料不足提示模态框 -->
+<div class="modal-overlay" id="insufficientModal" onclick="closeInsufficientModal()"><div class="modal-card" onclick="event.stopPropagation()"><div class="modal-title">⚠️ 材料不足</div><div id="insufficientContent" style="margin-bottom:16px; max-height:300px; overflow-y:auto;"></div><div class="modal-actions"><button onclick="closeInsufficientModal()">知道了</button></div></div></div>
+
+<!-- ==================== 主视图容器 ==================== -->
+<div id="view-home" class="container"></div>
+<div id="view-basic" style="display:none;"></div>
+<div id="view-sale" class="container" style="display:none;"></div>
+<div id="view-report" style="display:none;"></div>
+<div id="view-stat" style="display:none;"></div>
+<div id="view-purchase" style="display:none;"></div>
+<div id="view-settings" style="display:none;"></div>
+<div id="view-inventory" style="display:none;"></div>
+<div id="view-production" style="display:none;"></div>
+
+<div class="tab-bar">
+    <div class="tab active" data-tab="home"><span class="tab-icon">🏠</span>首页</div>
+    <div class="tab" data-tab="basic"><span class="tab-icon">📋</span>计价</div>
+    <div class="tab" data-tab="sale"><span class="tab-icon">🛒</span>开单</div>
+    <div class="tab" data-tab="report"><span class="tab-icon">📈</span>销售记录</div>
+</div>
+
+<script>
+(function(){
+    "use strict";
+    // ---------- 数据模型 ----------
+    const STORAGE_KEY = 'pizza_app_v33_rename';
+    const PRESET_INGREDIENTS = ['面粉','番茄酱','菜丁','菠萝丁','榴莲','鸡丁','香肠','芝士','包装'];
+    const defaultData = {
+        flavors: [],
+        customers: [ { name: '古早味', price: 10 }, { name: '个人版', price: 15 } ],
+        sales: [], purchases: [], ingredients: PRESET_INGREDIENTS.slice(), productions: [],
+        ingredientStock: {}, pizzaStock: {}, stockLogs: []
+    };
+    let appData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultData;
+    PRESET_INGREDIENTS.forEach(ing => { if (!appData.ingredients.includes(ing)) appData.ingredients.push(ing); });
+    if (!appData.ingredientStock) appData.ingredientStock = {};
+    if (!appData.pizzaStock) appData.pizzaStock = {};
+    if (!appData.stockLogs) appData.stockLogs = [];
+    if (!appData.productions) appData.productions = [];
+    appData.ingredients.forEach(ing => { if (appData.ingredientStock[ing] === undefined) appData.ingredientStock[ing] = 0; });
+    appData.sales = appData.sales.filter(s => s && typeof s === 'object').map(s => ({
+        date: s.date || new Date().toISOString().split('T')[0],
+        flavor: s.flavor || '',
+        customer: s.customer || '',
+        qty: Number(s.qty) || 1,
+        unitPrice: Number(s.unitPrice) || 0,
+        unitCost: Number(s.unitCost) || 0,
+        discount: Number(s.discount) || 0
+    }));
+
+    let editingFlavorIndex = -1, editingCustomerIndex = -1;
+    let filterCustomer = '', filterFlavor = '', filterYear = '', filterMonth = '';
+    let statGranularity = 'month', statSelectedCustomer = '';
+    let chartInstance = null, chartType = 'bar', chartMetric = 'revenue';
+    let inventoryMode = 'ingredient', basicMode = 'cost', productionMode = 'make', currentStockItem = null;
+    let selectedFlavor = '', selectedCustomer = appData.customers[0]?.name || '古早味';
+    let saleQty = null, discountAmount = 0;
+    let productionQuantities = {}, pendingProduction = null;
+    let dynamicIngredients = [];
+
+    function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); }
+    function showToast(msg, d=1500) { const t=document.getElementById('toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>t.style.display='none', d); }
+    function getIngredientPricePerGram(ingredientName) {
+        const purchases = appData.purchases.filter(p => p.ingredient === ingredientName);
+        if (purchases.length === 0) return 0;
+        let totalCost = 0, totalUnits = 0;
+        purchases.forEach(p => {
+            totalCost += Number(p.total) || 0;
+            totalUnits += (ingredientName === '包装') ? (Number(p.quantity) || 0) : (Number(p.quantity) || 0) * 1000;
+        });
+        return totalUnits > 0 ? totalCost / totalUnits : 0;
+    }
+    function calcDoughCost(doughWeight) {
+        if (doughWeight <= 0) return 0;
+        const flourPrice = getIngredientPricePerGram('面粉');
+        const flourNeeded = (doughWeight / 111) * 66.7;
+        return flourNeeded * flourPrice + 0.1;
+    }
+    function calcFlavorCost(flavor) {
+        let total = calcDoughCost(flavor.base || 0);
+        (flavor.ingredients || []).forEach(ing => total += (ing.weight || 0) * getIngredientPricePerGram(ing.name));
+        total += (flavor.pack || 0) + (flavor.labor || 0);
+        return total;
+    }
+    function addStockLog(itemType, itemName, change, newStock, reason, remark='') { appData.stockLogs.push({ date: new Date().toISOString().split('T')[0], itemType, itemName, change, newStock, reason, remark }); saveData(); }
+    function adjustIngredientStock(ing, delta, reason, remark='') { if(!appData.ingredientStock[ing]) appData.ingredientStock[ing]=0; appData.ingredientStock[ing]=Math.max(0, appData.ingredientStock[ing]+delta); addStockLog('ingredient', ing, delta, appData.ingredientStock[ing], reason, remark); }
+    function adjustPizzaStock(flavor, delta, reason, remark='') { if(!appData.pizzaStock[flavor]) appData.pizzaStock[flavor]=0; appData.pizzaStock[flavor]=Math.max(0, appData.pizzaStock[flavor]+delta); addStockLog('pizza', flavor, delta, appData.pizzaStock[flavor], reason, remark); }
+    function getIngredientsForFlavor(flavorName, quantity) {
+        const flavor = appData.flavors.find(f => f.name === flavorName);
+        if (!flavor) return {};
+        const result = {};
+        const doughWeight = (flavor.base || 0) * quantity;
+        if (doughWeight > 0) { result['面粉'] = (result['面粉'] || 0) + (doughWeight / 111) * 66.7; }
+        (flavor.ingredients || []).forEach(ing => { if (ing.weight > 0) result[ing.name] = (result[ing.name] || 0) + ing.weight * quantity; });
+        return result;
+    }
+    function getLowStockIngredients() {
+        const low = [];
+        appData.ingredients.forEach(ing => {
+            const stock = appData.ingredientStock[ing] || 0;
+            const threshold = (ing === '包装') ? 5 : 500;
+            if (stock < threshold) low.push({ name: ing, stock, unit: ing === '包装' ? '个' : 'g' });
+        });
+        return low;
+    }
+    function getOutOfStockPizzas() {
+        return appData.flavors.filter(f => (appData.pizzaStock[f.name] || 0) === 0).map(f => f.name);
+    }
+
+    const views = { home: document.getElementById('view-home'), basic: document.getElementById('view-basic'), sale: document.getElementById('view-sale'), report: document.getElementById('view-report'), stat: document.getElementById('view-stat'), purchase: document.getElementById('view-purchase'), settings: document.getElementById('view-settings'), inventory: document.getElementById('view-inventory'), production: document.getElementById('view-production') };
+    function showView(v) {
+        Object.keys(views).forEach(k=>views[k].style.display='none'); views[v].style.display='block';
+        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+        const at=Array.from(document.querySelectorAll('.tab')).find(t=>t.dataset.tab===v); if(at) at.classList.add('active');
+        document.getElementById('appBar').style.display = (v === 'home') ? 'flex' : 'none';
+        if(v==='home') renderHome(); else if(v==='basic') renderBasic(); else if(v==='sale') renderSale();
+        else if(v==='report') renderReport(); else if(v==='stat') renderStat(); else if(v==='purchase') renderPurchase();
+        else if(v==='settings') renderSettings(); else if(v==='inventory') renderInventory(); else if(v==='production') renderProduction();
+    }
+    document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>showView(t.dataset.tab)));
+
+    // 首页
+    function renderHome() {
+        const today=new Date().toISOString().split('T')[0], tm=today.slice(0,7);
+        const ts=appData.sales.filter(s=>s.date===today), ms=appData.sales.filter(s=>s.date.startsWith(tm));
+        const tr=ts.reduce((s,p)=>s+Number(p.unitPrice)*Number(p.qty),0), mr=ms.reduce((s,p)=>s+Number(p.unitPrice)*Number(p.qty),0);
+        const tc=ts.reduce((s,p)=>s+Number(p.unitCost)*Number(p.qty),0), mc=ms.reduce((s,p)=>s+Number(p.unitCost)*Number(p.qty),0);
+        const tp=ts.reduce((s,p)=>s+Number(p.unitPrice)*Number(p.qty) - Number(p.unitCost)*Number(p.qty) - Number(p.discount),0);
+        const mp=ms.reduce((s,p)=>s+Number(p.unitPrice)*Number(p.qty) - Number(p.unitCost)*Number(p.qty) - Number(p.discount),0);
+        const tpu=appData.purchases.filter(p=>p.date===today).reduce((s,p)=>s+Number(p.total||0),0);
+        const mpu=appData.purchases.filter(p=>p.date.startsWith(tm)).reduce((s,p)=>s+Number(p.total||0),0);
+        const lowStock = getLowStockIngredients();
+        const outPizzas = getOutOfStockPizzas();
+        let warningHtml = '';
+        if (lowStock.length === 0 && outPizzas.length === 0) {
+            warningHtml = '<div style="color:#2E7D32; text-align:center; padding:10px;">✅ 库存充足</div>';
+        } else {
+            if (lowStock.length > 0) {
+                warningHtml += '<div style="font-weight:bold; margin-bottom:6px;">📦 低库存原料</div>';
+                lowStock.forEach(item => { warningHtml += `<div class="warning-item"><span>${item.name}</span><span style="color:#E65100;">${item.stock} ${item.unit}</span></div>`; });
+            }
+            if (outPizzas.length > 0) {
+                warningHtml += '<div style="font-weight:bold; margin-top:8px; margin-bottom:6px;">🍕 缺货披萨</div>';
+                outPizzas.forEach(f => { warningHtml += `<div class="warning-item"><span>${f}</span><span style="color:#C62828;">库存 0</span></div>`; });
+            }
+        }
+        views.home.innerHTML=`<div class="stat-grid"><div class="stat-column"><div class="stat-card"><div class="stat-label">📊 今日销售额</div><div class="stat-value" style="color:#1565C0;">¥${tr.toFixed(2)}</div></div><div class="stat-card"><div class="stat-label">💰 今日利润</div><div class="stat-value" style="color:#2E7D32;">¥${tp.toFixed(2)}</div></div><div class="stat-card"><div class="stat-label">📦 今日成本</div><div class="stat-value" style="color:#C62828;">¥${tc.toFixed(2)}</div></div><div class="stat-card"><div class="stat-label">🛒 今日采购</div><div class="stat-value" style="color:#6A1B9A;">¥${tpu.toFixed(2)}</div></div></div><div class="stat-column"><div class="stat-card"><div class="stat-label">📆 本月销售额</div><div class="stat-value" style="color:#1565C0;">¥${mr.toFixed(2)}</div></div><div class="stat-card"><div class="stat-label">📈 本月利润</div><div class="stat-value" style="color:#2E7D32;">¥${mp.toFixed(2)}</div></div><div class="stat-card"><div class="stat-label">📦 本月成本</div><div class="stat-value" style="color:#C62828;">¥${mc.toFixed(2)}</div></div><div class="stat-card"><div class="stat-label">🛒 本月采购</div><div class="stat-value" style="color:#6A1B9A;">¥${mpu.toFixed(2)}</div></div></div></div>
+        <div class="card"><div style="font-weight:bold; margin-bottom:12px;">⚡ 快捷操作</div><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><button onclick="showView('stat')">📊 销售统计</button><button onclick="showView('purchase')" class="secondary">🛍️ 采购管理</button><button onclick="showView('inventory')" class="secondary">📦 库存管理</button><button onclick="showView('production')" class="secondary">📝 制作消耗</button></div></div>
+        <div class="card warning-card"><div style="font-weight:bold; margin-bottom:8px;">⚠️ 库存预警</div>${warningHtml}</div>`;
+    }
+
+    // 计价（原基础数据）
+    function renderBasic() {
+        let html = `<div style="padding:16px;height:100%;display:flex;flex-direction:column;overflow-y:auto;"><div class="basic-nav"><button class="back-btn" onclick="showView('home')">← 返回</button><h3>计价</h3></div><div class="basic-tabs"><div class="basic-tab ${basicMode==='cost'?'active':''}" onclick="switchBasicMode('cost')">📊 原料成本</div><div class="basic-tab ${basicMode==='price'?'active':''}" onclick="switchBasicMode('price')">💰 客户定价</div></div>`;
+        if (basicMode === 'cost') {
+            html += `<div class="page-header"><h3>📋 原料成本配置</h3><button class="add-btn" onclick="openAddFlavorModal()">➕ 新增口味</button></div>`;
+            if (!appData.flavors.length) html += '<p style="text-align:center;padding:20px;">暂无口味，请点击新增</p>';
+            else appData.flavors.forEach((f,i)=>{ const c=calcFlavorCost(f); html+=`<div class="card compact-card" onclick="editFlavor(${i})"><div class="flavor-card-header"><span class="item-name">${f.name}</span><span class="profit-badge">¥${c.toFixed(2)}</span></div></div>`; });
+        } else {
+            html += `<div class="page-header"><h3>💰 客户定价</h3><button class="add-btn" onclick="openAddCustomerModal()">➕ 新增客户</button></div>`;
+            appData.customers.forEach((c,i)=>{ html+=`<div class="card compact-card" onclick="editCustomer(${i})"><div class="customer-card-header"><span class="item-name">${c.name}</span><span class="item-price">¥${c.price.toFixed(2)}</span></div></div>`; });
+        }
+        html += `</div>`; views.basic.innerHTML = html;
+    }
+    window.switchBasicMode = m => { basicMode = m; renderBasic(); };
+
+    // 动态原料行（下拉菜单靠左，且过滤掉面粉和包装）
+    function renderSingleDynamicRow(idx, ing) {
+        const container = document.getElementById('dynamicIngredientsContainer');
+        const row = document.createElement('div');
+        row.className = 'ingredient-dynamic-row';
+        row.id = `dynRow_${idx}`;
+        const options = appData.ingredients.filter(i => i !== '面粉' && i !== '包装').map(i => `<option value="${i}" ${i===ing.name?'selected':''}>${i}</option>`).join('');
+        const cost = (ing.weight || 0) * getIngredientPricePerGram(ing.name);
+        row.innerHTML = `
+            <select id="dynIng_${idx}">${options}</select>
+            <input type="number" id="dynWeight_${idx}" step="0.1" min="0" value="${ing.weight||''}" placeholder="重量(g)">
+            <span id="dynCost_${idx}" style="color:#2E7D32; font-size:14px; text-align:right; width:70px;">¥${cost.toFixed(2)}</span>
+            <button onclick="removeDynamicIngredient(${idx})" style="background:#C62828; width:auto; padding:2px 6px; font-size:12px;">🗑️</button>
+        `;
+        container.appendChild(row);
+        document.getElementById(`dynIng_${idx}`).onchange = () => updateSingleRowCost(idx);
+        document.getElementById(`dynWeight_${idx}`).oninput = () => updateSingleRowCost(idx);
+    }
+    function updateSingleRowCost(idx) {
+        const ing = document.getElementById(`dynIng_${idx}`)?.value;
+        const weight = parseFloat(document.getElementById(`dynWeight_${idx}`)?.value) || 0;
+        const cost = weight * getIngredientPricePerGram(ing);
+        const costSpan = document.getElementById(`dynCost_${idx}`);
+        if (costSpan) costSpan.textContent = `¥${cost.toFixed(2)}`;
+        updateModalCosts();
+    }
+    window.addDynamicIngredientRow = function() {
+        const available = appData.ingredients.filter(i => i !== '面粉' && i !== '包装');
+        const newIdx = dynamicIngredients.length;
+        const newIng = { name: available[0] || '', weight: 0 };
+        dynamicIngredients.push(newIng);
+        renderSingleDynamicRow(newIdx, newIng);
+        updateModalCosts();
+    };
+    window.removeDynamicIngredient = function(idx) {
+        const row = document.getElementById(`dynRow_${idx}`);
+        if (row) row.remove();
+        dynamicIngredients.splice(idx, 1);
+        const container = document.getElementById('dynamicIngredientsContainer');
+        const rows = container.querySelectorAll('.ingredient-dynamic-row');
+        const newDynamic = [];
+        rows.forEach((r, newIdx) => {
+            const sel = r.querySelector('select');
+            const inp = r.querySelector('input');
+            const name = sel.value;
+            const weight = parseFloat(inp.value) || 0;
+            newDynamic.push({ name, weight });
+            r.id = `dynRow_${newIdx}`;
+            sel.id = `dynIng_${newIdx}`;
+            inp.id = `dynWeight_${newIdx}`;
+            const costSpan = r.querySelector('span');
+            costSpan.id = `dynCost_${newIdx}`;
+            const btn = r.querySelector('button');
+            btn.setAttribute('onclick', `removeDynamicIngredient(${newIdx})`);
+            sel.onchange = () => updateSingleRowCost(newIdx);
+            inp.oninput = () => updateSingleRowCost(newIdx);
+        });
+        dynamicIngredients = newDynamic;
+        updateModalCosts();
+    };
+    function updateModalCosts() {
+        const base = parseFloat(document.getElementById('modalBase').value) || 0;
+        const pack = parseFloat(document.getElementById('modalPack').value) || 0;
+        const labor = parseFloat(document.getElementById('modalLabor').value) || 0;
+        let total = calcDoughCost(base);
+        dynamicIngredients.forEach((ing, idx) => {
+            const weight = parseFloat(document.getElementById(`dynWeight_${idx}`)?.value) || 0;
+            if (ing.name) total += weight * getIngredientPricePerGram(ing.name);
+        });
+        total += pack + labor;
+        document.getElementById('costBase').textContent = `¥${calcDoughCost(base).toFixed(2)}`;
+        document.getElementById('costPack').textContent = `¥${pack.toFixed(2)}`;
+        document.getElementById('costLabor').textContent = `¥${labor.toFixed(2)}`;
+        document.getElementById('modalTotalCost').textContent = `¥${total.toFixed(2)}`;
+    }
+    window.editFlavor = function(i) {
+        editingFlavorIndex = i; const f = appData.flavors[i];
+        document.getElementById('flavorModalTitle').textContent = '编辑口味';
+        document.getElementById('flavorNameInput').value = f.name || '';
+        document.getElementById('modalBase').value = f.base || '';
+        document.getElementById('modalPack').value = f.pack || '';
+        document.getElementById('modalLabor').value = f.labor || '';
+        dynamicIngredients = (f.ingredients || []).map(ing => ({...ing}));
+        const container = document.getElementById('dynamicIngredientsContainer');
+        container.innerHTML = '';
+        dynamicIngredients.forEach((ing, idx) => renderSingleDynamicRow(idx, ing));
+        updateModalCosts();
+        ['modalBase','modalPack','modalLabor'].forEach(id => document.getElementById(id).oninput = updateModalCosts);
+        document.getElementById('flavorModalOverlay').style.display = 'flex';
+    };
+    window.openAddFlavorModal = function() {
+        editingFlavorIndex = -1;
+        document.getElementById('flavorModalTitle').textContent = '新增口味';
+        document.getElementById('flavorNameInput').value = '';
+        document.getElementById('modalBase').value = '';
+        document.getElementById('modalPack').value = '';
+        document.getElementById('modalLabor').value = '';
+        dynamicIngredients = [];
+        document.getElementById('dynamicIngredientsContainer').innerHTML = '';
+        updateModalCosts();
+        ['modalBase','modalPack','modalLabor'].forEach(id => document.getElementById(id).oninput = updateModalCosts);
+        document.getElementById('flavorModalOverlay').style.display = 'flex';
+    };
+    window.closeFlavorModal = () => document.getElementById('flavorModalOverlay').style.display = 'none';
+    window.saveFlavorFromModal = function() {
+        const name = document.getElementById('flavorNameInput').value.trim(); if(!name){ showToast('请输入口味名称'); return; }
+        const base = parseFloat(document.getElementById('modalBase').value) || 0;
+        const pack = parseFloat(document.getElementById('modalPack').value) || 0;
+        const labor = parseFloat(document.getElementById('modalLabor').value) || 0;
+        const ingredients = [];
+        dynamicIngredients.forEach((_, idx) => {
+            const ing = document.getElementById(`dynIng_${idx}`)?.value;
+            const weight = parseFloat(document.getElementById(`dynWeight_${idx}`)?.value) || 0;
+            if (ing && weight > 0) ingredients.push({ name: ing, weight });
+        });
+        const newFlavor = { name, base, ingredients, pack, labor };
+        if(editingFlavorIndex===-1){ if(appData.flavors.some(f=>f.name===name)){ showToast('口味已存在'); return; } appData.flavors.push(newFlavor); appData.pizzaStock[name]=0; showToast(`已新增口味：${name}`); }
+        else { const old=appData.flavors[editingFlavorIndex].name; if(old!==name && appData.flavors.some(f=>f.name===name)){ showToast('口味名称已存在'); return; } appData.flavors[editingFlavorIndex]=newFlavor; if(old!==name){ appData.pizzaStock[name]=appData.pizzaStock[old]||0; delete appData.pizzaStock[old]; } showToast(`已更新口味：${name}`); }
+        saveData(); closeFlavorModal(); renderBasic(); if(!selectedFlavor || !appData.flavors.some(f=>f.name===selectedFlavor)) selectedFlavor = appData.flavors[0]?.name || '';
+    };
+
+    // 客户编辑
+    window.editCustomer = function(i) { editingCustomerIndex=i; const c=appData.customers[i]; document.getElementById('customerModalTitle').textContent='编辑客户'; document.getElementById('customerNameInput').value=c.name; document.getElementById('customerNameInput').disabled=(i<2); document.getElementById('customerPriceInput').value=c.price||''; document.getElementById('customerModalOverlay').style.display='flex'; };
+    window.openAddCustomerModal = function() { editingCustomerIndex=-1; document.getElementById('customerModalTitle').textContent='新增客户'; document.getElementById('customerNameInput').value=''; document.getElementById('customerNameInput').disabled=false; document.getElementById('customerPriceInput').value=''; document.getElementById('customerModalOverlay').style.display='flex'; };
+    window.closeCustomerModal = () => document.getElementById('customerModalOverlay').style.display = 'none';
+    window.saveCustomerFromModal = function() {
+        const name = document.getElementById('customerNameInput').value.trim(); if(!name){ showToast('请输入客户名称'); return; }
+        const price = parseFloat(document.getElementById('customerPriceInput').value); if(isNaN(price)||price<0){ showToast('无效售价'); return; }
+        if(editingCustomerIndex===-1){ if(appData.customers.some(c=>c.name===name)){ showToast('客户已存在'); return; } appData.customers.push({name,price}); showToast(`已新增客户：${name}`); }
+        else { const old=appData.customers[editingCustomerIndex].name; if(old!==name && appData.customers.some(c=>c.name===name)){ showToast('客户名称已存在'); return; } appData.customers[editingCustomerIndex]={name,price}; showToast(`已更新客户：${name}`); }
+        saveData(); closeCustomerModal(); renderBasic(); if(!selectedCustomer || !appData.customers.some(c=>c.name===selectedCustomer)) selectedCustomer = appData.customers[0]?.name || '';
+    };
+
+    // 开单
+    function renderSale(){
+        if(!appData.flavors.length){ views.sale.innerHTML='<p style="padding:40px;text-align:center;">请先在计价页新增口味</p>'; return; }
+        if(!appData.customers.length){ views.sale.innerHTML='<p style="padding:40px;text-align:center;">请先在计价页新增客户</p>'; return; }
+        if(!selectedFlavor || !appData.flavors.find(f=>f.name===selectedFlavor)) selectedFlavor = appData.flavors[0].name;
+        if(!selectedCustomer || !appData.customers.find(c=>c.name===selectedCustomer)) selectedCustomer = appData.customers[0].name;
+        const fHtml=appData.flavors.map(f=>`<span class="flavor-chip ${f.name===selectedFlavor?'selected':''}" onclick="selectFlavor('${f.name}')">${f.name}</span>`).join('');
+        const cHtml=appData.customers.map(c=>`<span class="customer-chip ${c.name===selectedCustomer?'selected':''}" onclick="selectCustomer('${c.name}')">${c.name} ¥${c.price.toFixed(2)}</span>`).join('');
+        const flavor=appData.flavors.find(f=>f.name===selectedFlavor), customer=appData.customers.find(c=>c.name===selectedCustomer);
+        const cost=calcFlavorCost(flavor), price=customer.price;
+        const qty = saleQty || 1;
+        const profit=(price-cost)*qty - (discountAmount||0);
+        views.sale.innerHTML=`<div class="card"><h3>🍕 选择口味</h3><div class="flavor-selector">${fHtml}</div><h3 style="margin-top:20px;">👤 选择客户</h3><div class="flavor-selector">${cHtml}</div><h3 style="margin-top:20px;">🔢 数量</h3><div class="amount-control"><div class="amount-btn" onclick="changeQty(-1)">−</div><input type="number" class="amount-input" id="sale-qty-input" value="${saleQty||''}" min="1" step="1"><div class="amount-btn" onclick="changeQty(1)">+</div></div><div class="discount-row"><label>💰 优惠 (元)</label><input type="number" id="discountInput" value="${discountAmount||''}" min="0" step="0.01" placeholder="0.00"></div><div style="background:#f9f9f9; border-radius:40px; padding:16px; margin:20px 0;"><div style="display:flex; justify-content:space-between;"><span>成本单价:</span><span>¥${cost.toFixed(2)}</span></div><div style="display:flex; justify-content:space-between;"><span>售价:</span><span>¥${price.toFixed(2)}</span></div><div style="display:flex; justify-content:space-between; font-weight:bold; margin-top:8px;"><span>小计利润:</span><span style="color:#2E7D32;" id="profitPreview">¥${profit.toFixed(2)}</span></div></div><button onclick="submitSale()">✅ 确认开单</button></div>`;
+        const qtyInput = document.getElementById('sale-qty-input');
+        qtyInput.addEventListener('input', function() { let v = parseInt(this.value); if (isNaN(v) || v < 1) v = 1; saleQty = v; updateProfitPreview(); });
+        const discountInput = document.getElementById('discountInput');
+        discountInput.addEventListener('input', function() { let v = parseFloat(this.value); if (isNaN(v) || v < 0) v = 0; discountAmount = v; updateProfitPreview(); });
+        window.updateProfitPreview = function() {
+            const cost = calcFlavorCost(flavor);
+            const curQty = saleQty || 1;
+            const profit = (price - cost) * curQty - (discountAmount||0);
+            const previewSpan = document.getElementById('profitPreview');
+            if (previewSpan) previewSpan.textContent = `¥${profit.toFixed(2)}`;
+        };
+    }
+    window.selectFlavor=n=>{ selectedFlavor=n; renderSale(); };
+    window.selectCustomer=n=>{ selectedCustomer=n; renderSale(); };
+    window.changeQty=d=>{ let cur = saleQty || 1; saleQty = Math.max(1, cur + d); renderSale(); };
+    window.submitSale=function(){
+        const flavor=appData.flavors.find(f=>f.name===selectedFlavor), customer=appData.customers.find(c=>c.name===selectedCustomer);
+        if(!flavor||!customer) return;
+        const curQty = saleQty || 1;
+        const stock=appData.pizzaStock[selectedFlavor]||0;
+        if(stock<curQty){ showToast(`库存不足！${selectedFlavor}仅剩${stock}个`,2000); return; }
+        const cost=calcFlavorCost(flavor), price=customer.price, today=new Date().toISOString().split('T')[0];
+        appData.sales.push({date:today, flavor:selectedFlavor, customer:selectedCustomer, qty:curQty, unitPrice:price, unitCost:cost, discount:discountAmount||0});
+        adjustPizzaStock(selectedFlavor, -curQty, '销售出库', `销售 ${curQty} 个`);
+        saleQty = null; discountAmount = 0; renderSale(); showToast('已开单');
+    };
+
+    // 销售记录（原报表）
+    function getFilteredSales(){ return appData.sales.filter(s=>{ if(filterCustomer&&s.customer!==filterCustomer) return false; if(filterFlavor&&s.flavor!==filterFlavor) return false; if(filterYear&&filterMonth){ const t=`${filterYear}-${filterMonth.padStart(2,'0')}`; if(!s.date.startsWith(t)) return false; } return true; }); }
+    function renderReport(){
+        const filtered=getFilteredSales(); const years=[...new Set(appData.sales.map(s=>s.date.slice(0,4)))].sort().reverse();
+        const yOpts=['<option value="">年份</option>', ...years.map(y=>`<option value="${y}" ${filterYear===y?'selected':''}>${y}年</option>`)].join('');
+        const mOpts=['<option value="">月份</option>', ...Array.from({length:12},(_,i)=>`<option value="${i+1}" ${filterMonth===String(i+1)?'selected':''}>${i+1}月</option>`)].join('');
+        const cOpts=['<option value="">客户</option>', ...appData.customers.map(c=>`<option value="${c.name}" ${filterCustomer===c.name?'selected':''}>${c.name}</option>`)].join('');
+        const fOpts=['<option value="">口味</option>', ...appData.flavors.map(f=>`<option value="${f.name}" ${filterFlavor===f.name?'selected':''}>${f.name}</option>`)].join('');
+        const filterHtml=`<div class="filter-bar"><div class="filter-row"><div class="filter-item"><select id="filterCustomer" onchange="updateFilter('customer',this.value)">${cOpts}</select></div><div class="filter-item"><select id="filterFlavor" onchange="updateFilter('flavor',this.value)">${fOpts}</select></div><div class="filter-item"><select id="filterYear" onchange="updateFilter('year',this.value)">${yOpts}</select></div><div class="filter-item"><select id="filterMonth" onchange="updateFilter('month',this.value)">${mOpts}</select></div></div><button class="reset-filter-btn" onclick="resetFilter()">重置</button></div>`;
+        let rec=''; if(filtered.length===0) rec='<p style="text-align:center;padding:40px;color:#888;">暂无记录</p>';
+        else { rec='<div class="sale-list-container">'+filtered.slice().reverse().map(s=>{ const profit = s.unitPrice*s.qty - s.unitCost*s.qty - s.discount; return `<div class="card sale-record-item"><div style="display:flex;justify-content:space-between;"><span><b>${s.flavor} (${s.customer})</b> ×${s.qty}</span><span>${s.date}</span></div><div style="display:flex;justify-content:space-between;color:#666;"><span>成本: ¥${(s.unitCost*s.qty).toFixed(2)}</span><span>利润: ¥${profit.toFixed(2)} ${s.discount?`(优惠 ¥${s.discount.toFixed(2)})`:''}</span></div></div>`; }).join('')+'</div>'; }
+        views.report.innerHTML=`<div style="padding:16px;height:100%;display:flex;flex-direction:column;"><div class="report-header"><h3>📋 销售记录</h3></div>${filterHtml}${rec}</div>`;
+    }
+    window.updateFilter=(t,v)=>{ if(t==='customer') filterCustomer=v; else if(t==='flavor') filterFlavor=v; else if(t==='year') filterYear=v; else if(t==='month') filterMonth=v; renderReport(); };
+    window.resetFilter=()=>{ filterCustomer=filterFlavor=filterYear=filterMonth=''; renderReport(); };
+
+    // 销售统计
+    function getWeekStartAndEnd(d){ const dt=new Date(d+'T00:00:00'); const day=dt.getDay(); const diff=day===0?6:day-1; const mon=new Date(dt); mon.setDate(dt.getDate()-diff); const sun=new Date(mon); sun.setDate(mon.getDate()+6); const fmt=d=>`${d.getMonth()+1}.${d.getDate()}`; return {mon,sun,startStr:fmt(mon),endStr:fmt(sun)}; }
+    function getPeriodKeyAndRange(d,g){ const dt=new Date(d+'T00:00:00'); const y=dt.getFullYear(),m=dt.getMonth()+1; if(g==='year') return {key:`${y}年`}; if(g==='quarter') return {key:`${y}年Q${Math.ceil(m/3)}`}; if(g==='month') return {key:`${y}年${m.toString().padStart(2,'0')}月`}; if(g==='week'){ const {mon,startStr,endStr}=getWeekStartAndEnd(d); const wy=mon.getFullYear(); const ws=new Date(Date.UTC(wy,0,1)); const days=Math.floor((mon-ws)/86400000); const wk=Math.ceil((days+1)/7); return {key:`${wy}年第${wk}周`,rangeStr:` (${startStr}-${endStr})`}; } return {key:d}; }
+    function renderStat(){
+        let sales=statSelectedCustomer?appData.sales.filter(s=>s.customer===statSelectedCustomer):appData.sales;
+        const groups={}; sales.forEach(s=>{ const {key,rangeStr}=getPeriodKeyAndRange(s.date,statGranularity); if(!groups[key]) groups[key]={revenue:0,cost:0,profit:0,rangeStr:rangeStr||''}; groups[key].revenue+=s.unitPrice*s.qty; groups[key].cost+=s.unitCost*s.qty; groups[key].profit+=(s.unitPrice*s.qty - s.unitCost*s.qty - s.discount); if(statGranularity==='week'&&!groups[key].rangeStr) groups[key].rangeStr=rangeStr||''; });
+        const sorted=Object.keys(groups).sort((a,b)=>a.localeCompare(b)); const total={revenue:0,cost:0,profit:0}; sorted.forEach(k=>{ total.revenue+=groups[k].revenue; total.cost+=groups[k].cost; total.profit+=groups[k].profit; });
+        const cOpts=['<option value="">全部客户</option>', ...appData.customers.map(c=>`<option value="${c.name}" ${statSelectedCustomer===c.name?'selected':''}>${c.name}</option>`)].join('');
+        let rows=''; if(sorted.length===0) rows='<tr><td colspan="4" style="padding:40px;text-align:center;color:#888;">暂无数据</td></tr>';
+        else rows=sorted.map(k=>{ const g=groups[k]; const d=statGranularity==='week'?k+g.rangeStr:k; return `<tr><td>${d}</td><td class="text-right">¥${g.revenue.toFixed(2)}</td><td class="text-right">¥${g.cost.toFixed(2)}</td><td class="text-right" style="color:#2E7D32;">¥${g.profit.toFixed(2)}</td></tr>`; }).join('');
+        views.stat.innerHTML=`<div style="padding:16px;height:100%;display:flex;flex-direction:column;overflow-y:auto;"><div class="stat-nav"><button class="back-btn" onclick="showView('home')">← 返回</button><h3>销售统计</h3></div><div class="stat-filter-row"><select id="statCustomerSelect" onchange="updateStatCustomer(this.value)">${cOpts}</select><div class="granularity-bar"><button class="granularity-btn ${statGranularity==='week'?'active':''}" onclick="setStatGranularity('week')">周</button><button class="granularity-btn ${statGranularity==='month'?'active':''}" onclick="setStatGranularity('month')">月</button><button class="granularity-btn ${statGranularity==='quarter'?'active':''}" onclick="setStatGranularity('quarter')">季</button><button class="granularity-btn ${statGranularity==='year'?'active':''}" onclick="setStatGranularity('year')">年</button></div></div><div class="stat-summary"><div style="display:flex;justify-content:space-around;"><div><span style="color:#888;">总销售额</span><br><span style="font-size:18px;font-weight:bold;">¥${total.revenue.toFixed(2)}</span></div><div><span style="color:#888;">总成本</span><br><span style="font-size:18px;font-weight:bold;">¥${total.cost.toFixed(2)}</span></div><div><span style="color:#888;">总利润</span><br><span style="font-size:18px;font-weight:bold;color:#2E7D32;">¥${total.profit.toFixed(2)}</span></div></div></div><div class="chart-toolbar"><button class="${chartType==='bar'?'active':''}" onclick="setChartType('bar')">📊 柱状图</button><button class="${chartType==='line'?'active':''}" onclick="setChartType('line')">📈 折线图</button><select id="chartMetricSelect" onchange="setChartMetric(this.value)" style="width:auto;padding:6px 12px;"><option value="revenue" ${chartMetric==='revenue'?'selected':''}>销售额</option><option value="cost" ${chartMetric==='cost'?'selected':''}>成本</option><option value="profit" ${chartMetric==='profit'?'selected':''}>利润</option></select></div><div class="chart-container"><canvas id="statChart"></canvas></div><div class="export-toolbar"><button onclick="exportStatCSV()">📄 导出CSV</button><button onclick="exportStatImage()">🖼️ 导出图片</button></div><table class="stat-table"><thead><tr><th>时间段</th><th class="text-right">销售额</th><th class="text-right">成本</th><th class="text-right">利润</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+        setTimeout(()=>drawChart(groups,sorted),50);
+    }
+    function drawChart(groups,sorted){ const canvas=document.getElementById('statChart'); if(!canvas) return; const ctx=canvas.getContext('2d'); if(chartInstance) chartInstance.destroy(); if(sorted.length===0){ ctx.clearRect(0,0,canvas.width,canvas.height); ctx.font='16px sans-serif'; ctx.fillStyle='#888'; ctx.textAlign='center'; ctx.fillText('暂无数据',canvas.width/2,canvas.height/2); return; } const labels=sorted.map(k=>statGranularity==='week'?k+groups[k].rangeStr:k); const data=sorted.map(k=>groups[k][chartMetric]||0); const colors={revenue:'#1565C0',cost:'#C62828',profit:'#2E7D32'}; chartInstance=new Chart(ctx,{type:chartType,data:{labels,datasets:[{label:chartMetric,data,backgroundColor:chartType==='bar'?colors[chartMetric]:'transparent',borderColor:colors[chartMetric],borderWidth:2,tension:0.2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}}); }
+    window.setStatGranularity=g=>{ statGranularity=g; renderStat(); }; window.updateStatCustomer=v=>{ statSelectedCustomer=v; renderStat(); };
+    window.setChartType=t=>{ chartType=t; renderStat(); }; window.setChartMetric=m=>{ chartMetric=m; renderStat(); };
+    window.exportStatCSV=function(){ showToast('CSV导出'); }; window.exportStatImage=function(){ showToast('图片导出'); };
+
+    // 采购管理
+    function renderPurchase(){
+        const ps=appData.purchases||[]; const total=ps.reduce((s,p)=>s+Number(p.total||0),0);
+        let rec=''; if(ps.length===0) rec='<p style="text-align:center;padding:40px;color:#888;">暂无采购记录</p>';
+        else rec='<div class="purchase-list-container">'+ps.slice().reverse().map(p=>{ const unit=p.ingredient==='包装'?'个':'kg'; const pricePerUnit=(Number(p.total)||0)/(Number(p.quantity)||1); return `<div class="card purchase-record-item"><div style="display:flex;justify-content:space-between;"><span><b>${p.ingredient}</b> ${p.quantity||''}${unit}</span></div><div style="display:flex;justify-content:space-between;color:#666;"><span>总价:¥${(p.total||0).toFixed(2)}</span><span class="price-per-gram">≈¥${pricePerUnit.toFixed(4)}/${unit}</span></div><div style="color:#888;font-size:12px;">${p.date}</div></div>`; }).join('')+'</div>';
+        views.purchase.innerHTML=`<div style="padding:16px;height:100%;display:flex;flex-direction:column;"><div class="purchase-nav"><button class="back-btn" onclick="showView('home')">← 返回</button><h3>采购管理</h3></div><div style="display:flex;gap:10px;margin-bottom:16px;"><button onclick="openPurchaseModal()" style="flex:2;">➕ 新增采购</button><button onclick="openIngredientModal()" style="flex:1;" class="secondary">📦 管理原料</button></div><div class="stat-summary"><div style="display:flex;justify-content:space-around;"><div><span style="color:#888;">采购总支出</span><br><span style="font-size:18px;font-weight:bold;">¥${total.toFixed(2)}</span></div></div></div><div style="flex:1;overflow-y:auto;">${rec}</div></div>`;
+    }
+    window.openIngredientModal=function(){ renderIngredientList(); document.getElementById('ingredientModalOverlay').style.display='flex'; };
+    window.closeIngredientModal=()=>document.getElementById('ingredientModalOverlay').style.display='none';
+    function renderIngredientList(){ const cont=document.getElementById('ingredientListContainer'); cont.innerHTML = appData.ingredients.map((ing,i)=>`<div class="ingredient-item"><span>${ing}</span><button class="delete-btn-small" onclick="deleteIngredient(${i},'${ing}')">删除</button></div>`).join(''); }
+    window.addIngredient=function(){ const inp=document.getElementById('newIngredientName'); const name=inp.value.trim(); if(!name){ showToast('请输入名称'); return; } if(appData.ingredients.includes(name)){ showToast('已存在'); return; } appData.ingredients.push(name); appData.ingredientStock[name]=0; saveData(); inp.value=''; renderIngredientList(); showToast(`已添加原料：${name}`); };
+    window.deleteIngredient=function(i,name){ if(appData.purchases.some(p=>p.ingredient===name)||appData.productions.some(p=>p.flavor)){ showToast('原料已被使用，无法删除'); return; } appData.ingredients.splice(i,1); delete appData.ingredientStock[name]; saveData(); renderIngredientList(); showToast('已删除'); };
+    function updateIngredientSelect(){ const sel=document.getElementById('purchaseIngredientSelect'); sel.innerHTML = appData.ingredients.map(ing=>`<option value="${ing}">${ing}</option>`).join(''); }
+    window.openPurchaseModal=function(){ 
+        updateIngredientSelect(); 
+        document.getElementById('purchaseQuantity').value=''; 
+        document.getElementById('purchasePrice').value=''; 
+        document.getElementById('purchaseModalOverlay').style.display='flex';
+        document.getElementById('purchaseIngredientSelect').onchange = function() {
+            const ing = this.value;
+            const label = document.getElementById('purchaseUnitLabel');
+            const qtyInput = document.getElementById('purchaseQuantity');
+            if (ing === '包装') { label.textContent = '数量(个)'; qtyInput.step = '1'; qtyInput.min = '1'; }
+            else { label.textContent = '数量(kg)'; qtyInput.step = '0.001'; qtyInput.min = '0.001'; }
+        };
+    };
+    window.closePurchaseModal=()=>document.getElementById('purchaseModalOverlay').style.display='none';
+    window.savePurchase=function(){
+        const ing=document.getElementById('purchaseIngredientSelect').value; if(!ing){ showToast('请选择原料'); return; }
+        const qty=parseFloat(document.getElementById('purchaseQuantity').value);
+        const total=parseFloat(document.getElementById('purchasePrice').value);
+        if(isNaN(qty)||qty<=0){ showToast('无效数量'); return; } if(isNaN(total)||total<0){ showToast('无效总价'); return; }
+        const today=new Date().toISOString().split('T')[0];
+        appData.purchases.push({date:today, ingredient:ing, quantity:qty, total:total});
+        if (ing === '包装') adjustIngredientStock(ing, qty, '采购入库', `采购 ${qty}个`);
+        else adjustIngredientStock(ing, qty*1000, '采购入库', `采购 ${qty}kg`);
+        closePurchaseModal(); renderPurchase(); showToast('采购已添加，库存已更新');
+    };
+
+    // 库存管理
+    function renderInventory(){
+        const ings=appData.ingredients||[], flavors=appData.flavors||[]; let items='';
+        if(inventoryMode==='ingredient'){
+            items=ings.map(ing=>{ const s=appData.ingredientStock[ing]||0; let cls=s<=0?'stock-out':(s<500?'stock-low':'stock-normal'); return `<div class="card compact-card" style="display:flex;justify-content:space-between;" onclick="openStockAdjust('ingredient','${ing}')"><span>${ing}</span><span class="stock-badge ${cls}">${s} ${ing==='包装'?'个':'g'}</span></div>`; }).join('');
+            if(!items) items='<p style="text-align:center;padding:20px;">暂无原料</p>';
+        } else {
+            items=flavors.map(f=>{ const s=appData.pizzaStock[f.name]||0; let cls=s<=0?'stock-out':(s<3?'stock-low':'stock-normal'); return `<div class="card compact-card" style="display:flex;justify-content:space-between;" onclick="openStockAdjust('pizza','${f.name}')"><span>${f.name}</span><span class="stock-badge ${cls}">${s} 个</span></div>`; }).join('');
+        }
+        views.inventory.innerHTML=`<div style="padding:16px;height:100%;display:flex;flex-direction:column;"><div class="inventory-nav"><button class="back-btn" onclick="showView('home')">← 返回</button><h3>库存管理</h3></div><div class="inventory-tabs"><div class="inventory-tab ${inventoryMode==='ingredient'?'active':''}" onclick="switchInventoryMode('ingredient')">📦 原料库存</div><div class="inventory-tab ${inventoryMode==='pizza'?'active':''}" onclick="switchInventoryMode('pizza')">🍕 披萨库存</div></div><div style="margin-bottom:12px;"><button onclick="showStockLogs()" class="secondary">📋 查看流水</button></div><div style="flex:1;overflow-y:auto;">${items}</div></div>`;
+    }
+    window.switchInventoryMode=m=>{ inventoryMode=m; renderInventory(); };
+    window.openStockAdjust=(t,n)=>{ currentStockItem={type:t,name:n}; const cur=(t==='ingredient'?appData.ingredientStock[n]:appData.pizzaStock[n])||0; document.getElementById('stockModalTitle').textContent=`调整 ${n} (当前: ${cur}${t==='ingredient'?(n==='包装'?'个':'g'):'个'})`; document.getElementById('stockChangeInput').value=''; document.getElementById('stockRemarkInput').value=''; document.getElementById('stockModalOverlay').style.display='flex'; };
+    window.closeStockModal=()=>document.getElementById('stockModalOverlay').style.display='none';
+    window.confirmStockChange=function(){
+        if(!currentStockItem) return; const d=parseFloat(document.getElementById('stockChangeInput').value); if(isNaN(d)||d===0){ showToast('变动量不能为0'); return; }
+        const r=document.getElementById('stockRemarkInput').value.trim()||'手动调整';
+        if(currentStockItem.type==='ingredient') adjustIngredientStock(currentStockItem.name, d, '手动调整', r);
+        else adjustPizzaStock(currentStockItem.name, d, '手动调整', r);
+        closeStockModal(); renderInventory(); showToast('库存已更新');
+    };
+    window.showStockLogs=function(){
+        const logs=appData.stockLogs.slice().reverse().slice(0,50); let h=logs.map(l=>`<div style="padding:8px;border-bottom:1px solid #eee;"><b>${l.itemName}</b> ${l.change>0?'+'+l.change:l.change} → ${l.newStock} (${l.reason})<br><small>${l.date} ${l.remark||''}</small></div>`).join('')||'<p>暂无流水</p>';
+        const m=document.createElement('div'); m.className='modal-overlay'; m.style.display='flex'; m.innerHTML=`<div class="modal-card"><div class="modal-title">库存流水</div><div style="max-height:400px;overflow-y:auto;">${h}</div><div class="modal-actions"><button onclick="this.closest('.modal-overlay').remove()">关闭</button></div></div>`; document.body.appendChild(m);
+    };
+
+    // 制作消耗
+    function renderProduction() {
+        let html = `<div style="padding:16px;height:100%;display:flex;flex-direction:column;overflow-y:auto;"><div class="production-nav"><button class="back-btn" onclick="showView('home')">← 返回</button><h3>制作消耗</h3></div><div class="production-tabs"><div class="production-tab ${productionMode==='make'?'active':''}" onclick="switchProductionMode('make')">🍕 制作</div><div class="production-tab ${productionMode==='consume'?'active':''}" onclick="switchProductionMode('consume')">📉 消耗</div></div>`;
+        if (productionMode === 'make') {
+            if (!appData.flavors.length) html += '<p style="text-align:center;padding:40px;">暂无口味</p>';
+            else {
+                html += `<div style="margin-bottom:16px;">`;
+                appData.flavors.forEach(f => {
+                    const qty = productionQuantities[f.name] || '';
+                    html += `<div class="production-flavor-row"><span class="production-flavor-name">${f.name}</span><div class="production-qty-control"><button onclick="changeProductionQty('${f.name}', -1)">−</button><input type="number" id="prodQty_${f.name}" value="${qty}" min="0" onchange="updateProductionQty('${f.name}', this.value)"><button onclick="changeProductionQty('${f.name}', 1)">+</button></div></div>`;
+                });
+                html += `</div><button onclick="confirmProduction()">✅ 确认制作</button>`;
+            }
+        } else {
+            const summary = {};
+            appData.productions.forEach(p => {
+                const ingredients = getIngredientsForFlavor(p.flavor, p.quantity);
+                Object.entries(ingredients).forEach(([ing, grams]) => { summary[ing] = (summary[ing] || 0) + grams; });
+            });
+            if (Object.keys(summary).length === 0) html += '<p style="text-align:center;padding:40px;">暂无消耗记录</p>';
+            else {
+                html += `<div class="stat-summary"><h4>累计原料消耗</h4></div><div style="flex:1;overflow-y:auto;">`;
+                Object.entries(summary).forEach(([ing, grams]) => { html += `<div class="card compact-card"><div style="display:flex;justify-content:space-between;"><span><b>${ing}</b></span><span>${grams.toFixed(1)} ${ing==='包装'?'个':'g'}</span></div></div>`; });
+                html += `</div>`;
+            }
+        }
+        html += `</div>`; views.production.innerHTML = html;
+    }
+    window.switchProductionMode = m => { productionMode = m; renderProduction(); };
+    window.changeProductionQty = (flavor, delta) => { const cur = productionQuantities[flavor] || 0; productionQuantities[flavor] = Math.max(0, cur + delta); renderProduction(); };
+    window.updateProductionQty = (flavor, val) => { let v = parseInt(val); if (isNaN(v) || v < 0) v = 0; productionQuantities[flavor] = v; renderProduction(); };
+    window.confirmProduction = function() {
+        const items = Object.entries(productionQuantities).filter(([_, qty]) => qty > 0);
+        if (items.length === 0) { showToast('请至少选择一个披萨'); return; }
+        const insufficientList = [];
+        for (let [flavor, qty] of items) {
+            const ingredients = getIngredientsForFlavor(flavor, qty);
+            for (let [ing, required] of Object.entries(ingredients)) {
+                const stock = appData.ingredientStock[ing] || 0;
+                if (stock < required) {
+                    const unit = ing === '包装' ? '个' : 'g';
+                    insufficientList.push(`${ing} 缺少 ${(required - stock).toFixed(1)}${unit} (需要${required.toFixed(1)}，库存${stock.toFixed(1)})`);
+                }
+            }
+        }
+        if (insufficientList.length > 0) {
+            let content = '';
+            insufficientList.forEach(msg => { content += `<div style="padding:6px 0; border-bottom:1px solid #eee;">${msg}</div>`; });
+            document.getElementById('insufficientContent').innerHTML = content;
+            document.getElementById('insufficientModal').style.display = 'flex';
+            return;
+        }
+        let content = ''; items.forEach(([flavor, qty]) => { content += `<div style="display:flex;justify-content:space-between;"><span>${flavor}</span><span>× ${qty}</span></div>`; });
+        document.getElementById('confirmProductionContent').innerHTML = content;
+        pendingProduction = items;
+        document.getElementById('confirmProductionModal').style.display = 'flex';
+    };
+    window.closeConfirmProductionModal = () => document.getElementById('confirmProductionModal').style.display = 'none';
+    window.closeInsufficientModal = () => document.getElementById('insufficientModal').style.display = 'none';
+    window.executeProduction = function() {
+        if (!pendingProduction) return;
+        const today = new Date().toISOString().split('T')[0];
+        for (let [flavor, qty] of pendingProduction) {
+            const ingredients = getIngredientsForFlavor(flavor, qty);
+            for (let [ing, grams] of Object.entries(ingredients)) adjustIngredientStock(ing, -grams, '制作消耗', `制作 ${flavor} ${qty}个`);
+            adjustPizzaStock(flavor, qty, '制作入库', `制作 ${qty} 个`);
+            appData.productions.push({ date: today, flavor, quantity: qty });
+        }
+        saveData();
+        productionQuantities = {};
+        closeConfirmProductionModal();
+        productionMode = 'consume';
+        renderProduction();
+        showToast('制作完成，库存已更新');
+    };
+
+    // 设置
+    function renderSettings(){ views.settings.innerHTML=`<div style="padding:16px;"><div class="stat-nav"><button class="back-btn" onclick="showView('home')">← 返回</button><h3>设置</h3></div><div class="card"><button onclick="exportBackup()">📤 导出备份</button></div><div class="card"><div class="file-input-wrapper"><button class="secondary">📂 恢复备份</button><input type="file" id="restoreFileInput" accept=".json"></div></div></div>`; document.getElementById('restoreFileInput').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=ev=>{ try{ const d=JSON.parse(ev.target.result); appData=d; saveData(); showToast('恢复成功'); showView('home'); }catch{ showToast('无效文件'); } }; r.readAsText(f); }); }
+    window.exportBackup=function(){ const b=new Blob([JSON.stringify(appData)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`pizza_backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); showToast('备份已导出'); };
+
+    // 全局挂载
+    window.showView=showView; window.switchBasicMode=switchBasicMode; window.editFlavor=editFlavor; window.openAddFlavorModal=openAddFlavorModal; window.saveFlavorFromModal=saveFlavorFromModal; window.addDynamicIngredientRow=addDynamicIngredientRow; window.removeDynamicIngredient=removeDynamicIngredient;
+    window.editCustomer=editCustomer; window.openAddCustomerModal=openAddCustomerModal; window.saveCustomerFromModal=saveCustomerFromModal;
+    window.selectFlavor=selectFlavor; window.selectCustomer=selectCustomer; window.changeQty=changeQty; window.submitSale=submitSale;
+    window.updateFilter=updateFilter; window.resetFilter=resetFilter;
+    window.setStatGranularity=setStatGranularity; window.updateStatCustomer=updateStatCustomer; window.setChartType=setChartType; window.setChartMetric=setChartMetric; window.exportStatCSV=exportStatCSV; window.exportStatImage=exportStatImage;
+    window.openPurchaseModal=openPurchaseModal; window.closePurchaseModal=closePurchaseModal; window.savePurchase=savePurchase; window.openIngredientModal=openIngredientModal; window.closeIngredientModal=closeIngredientModal; window.addIngredient=addIngredient; window.deleteIngredient=deleteIngredient;
+    window.switchInventoryMode=switchInventoryMode; window.openStockAdjust=openStockAdjust; window.closeStockModal=closeStockModal; window.confirmStockChange=confirmStockChange; window.showStockLogs=showStockLogs;
+    window.switchProductionMode=switchProductionMode; window.changeProductionQty=changeProductionQty; window.updateProductionQty=updateProductionQty; window.confirmProduction=confirmProduction; window.closeConfirmProductionModal=closeConfirmProductionModal; window.executeProduction=executeProduction; window.closeInsufficientModal=closeInsufficientModal;
+    window.exportBackup=exportBackup;
+    showView('home');
+})();
+</script>
+</body>
 </html>
